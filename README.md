@@ -1,34 +1,154 @@
 
 # TeachnGrow - Faculty Self-Appraisal System
 
-TeachnGrow is a web application for educational professionals to manage and track their self-appraisal documents.
+TeachnGrow is a modern web application for educational professionals to manage and track their self-appraisal documents. The system allows faculty members to submit documents for review, while department heads and administrators can review and approve submissions.
 
 ## Technology Stack
 
-- Frontend: HTML, Tailwind CSS, JavaScript
-- Backend: Node.js with Express.js
-- Data: Mock data (prepared for MongoDB integration)
+- **Frontend**: React, TypeScript, Tailwind CSS
+- **UI Components**: Shadcn UI (based on Radix UI)
+- **State Management**: React Context API
+- **Routing**: React Router
+- **Form Handling**: React Hook Form with Zod validation
+- **Data Persistence**: MongoDB with Mongoose
+- **Authentication**: Firebase Authentication
+- **Email Notifications**: Nodemailer (mock implementation)
+- **Build Tool**: Vite
+
+## Project Structure
+
+```
+├── public/             # Static assets
+├── src/                # Source code
+│   ├── components/     # Reusable UI components
+│   ├── contexts/       # React context providers
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Utility libraries
+│   ├── pages/          # Page components
+│   ├── services/       # API and service functions
+│   └── utils/          # Helper utilities
+├── index.html         # Entry HTML file
+└── package.json       # Project dependencies
+```
 
 ## Features
 
-- User authentication (faculty, admin, hod, principal)
-- Document creation and submission
-- Document review and approval workflow
-- User management
-- Category/criteria management
-- Profile management
+- **User Authentication**: Multiple role-based access (faculty, admin, HOD, principal)
+- **Document Management**: Create, edit, submit, and track documents
+- **Review Workflow**: Multi-stage review process with notifications
+- **User Management**: Admin tools for managing users
+- **Category Management**: Flexible criteria configuration
+- **Profile Management**: User profile customization
+- **MongoDB Integration**: Data persistence with MongoDB
+- **Document Preview**: View uploaded documents directly in the application
 
 ## Setup Instructions
 
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- MongoDB (v4.4 or higher)
+
+### Installation
+
+#### Windows
+
 1. Clone this repository
-2. Navigate to the project root directory
-3. Start the server:
+   ```bash
+   git clone https://github.com/yourusername/teachngrow.git
+   cd teachngrow
+   ```
+
+2. Install dependencies
+   ```bash
+   npm install
+   # or if you use yarn
+   yarn install
+   ```
+
+3. Start the development server
+   ```bash
+   npm run dev
+   # or if you use yarn
+   yarn dev
+   ```
+
+4. Access the application at `http://localhost:8080`
+
+#### Linux
+
+1. Clone this repository
+   ```bash
+   git clone https://github.com/yourusername/teachngrow.git
+   cd teachngrow
+   ```
+
+2. Install dependencies
+   ```bash
+   npm install
+   # or if you prefer yarn
+   yarn install
+   ```
+
+3. Make sure you have the correct permissions
+   ```bash
+   chmod +x node_modules/.bin/vite
+   ```
+
+4. Start the development server
+   ```bash
+   npm run dev
+   # or if you prefer yarn
+   yarn dev
+   ```
+
+5. Access the application at `http://localhost:8080`
+
+### Production Build
 
 ```bash
-node server/server.js
+# Build the application
+npm run build
+
+# Preview the production build
+npm run preview
 ```
 
-4. Access the application at `http://localhost:5000`
+## MongoDB Setup
+
+### Windows
+
+1. Install MongoDB Community Edition from the [official website](https://www.mongodb.com/try/download/community)
+2. Install MongoDB Compass for a GUI interface to your database
+3. Ensure MongoDB is running locally on the default port (27017)
+
+### Linux (Ubuntu/Debian)
+
+1. Install MongoDB
+   ```bash
+   sudo apt update
+   sudo apt install -y mongodb
+   ```
+
+2. Start and enable MongoDB service
+   ```bash
+   sudo systemctl start mongodb
+   sudo systemctl enable mongodb
+   ```
+
+3. Verify MongoDB is running
+   ```bash
+   sudo systemctl status mongodb
+   ```
+
+4. Install MongoDB Compass (optional)
+   ```bash
+   wget https://downloads.mongodb.com/compass/mongodb-compass_1.36.4_amd64.deb
+   sudo dpkg -i mongodb-compass_1.36.4_amd64.deb
+   ```
+
+The application will automatically create the required collections when it first connects to MongoDB.
 
 ## Demo Login Credentials
 
@@ -36,35 +156,28 @@ node server/server.js
   - Email: admin@example.com
   - Password: password
 
-- Faculty:
-  - Email: jyoti@example.com
+- HOD (Department Head):
+  - Email: hod@example.com
   - Password: password
 
-## Project Structure
+- Faculty:
+  - Email: faculty@example.com
+  - Password: password
 
-- `/public`: Frontend static files
-  - `/css`: Stylesheets
-  - `/js`: JavaScript files
-    - `/pages`: Page components
-    - `/components.js`: Reusable UI components
-    - `/api.js`: API functions
-    - `/auth.js`: Authentication functions
-    - `/router.js`: Client-side routing
-    - `/utils.js`: Helper utilities
-- `/server`: Backend files
-  - `/routes`: API routes
-  - `server.js`: Main server file
+## Development Notes
 
-## Notes
+- The application uses a mock email service in development. In production, you would need to configure a real email service.
+- Document uploads are supported for PDF and Word documents.
+- The system is designed to be responsive and works on mobile devices.
 
-This is a demo application with mock data. In a real production environment, you would:
+## Future Enhancements
 
-1. Connect to a MongoDB database
-2. Implement proper authentication with JWT
-3. Add proper validation and error handling
-4. Implement file uploads for documents
-5. Add more comprehensive test coverage
-6. Configure proper environment variables
+1. Implement real email notifications using a service like SendGrid or Mailgun
+2. Add comprehensive analytics dashboard for administrators
+3. Implement batch processing for document approvals
+4. Add export functionality for reports
+5. Enhance document preview capabilities
+6. Implement real-time notifications
 
 ## License
 
