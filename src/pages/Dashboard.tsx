@@ -220,57 +220,69 @@ const FacultyDashboard = () => {
         
         {/* Categories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => {
-            const categoryCredits = creditsByCategory[category.id] || 0;
-            const maxCredits = maxCreditsByCategory[category.id] || category.maxCredits;
-            
-            // Icon name based on category name
-            let iconName = "publication";
-            if (category.name.toLowerCase().includes("academic") || category.name.toLowerCase().includes("achievement")) {
-              iconName = "academic-achievements";
-            } else if (category.name.toLowerCase().includes("event") || category.name.toLowerCase().includes("workshop")) {
-              iconName = "event-partication";
-            } else if (category.name.toLowerCase().includes("industry")) {
-              iconName = "industry-contribution";
-            } else if (category.name.toLowerCase().includes("student") || category.name.toLowerCase().includes("feedback")) {
-              iconName = "student-feedbacks";
-            }
-            
-            return (
-              <div key={category.id} className="bg-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                <div className="flex justify-center mb-4">
-                  <h3 className="text-xl font-bold text-center">{category.name}</h3>
-                </div>
-                
-                {userData?.role === "faculty" && (
-                  <div className="mt-4">
-                    <div className="flex justify-between mb-1 text-sm">
-                      <span>Progress</span>
-                      <span>{categoryCredits} / {maxCredits} credits</span>
-                    </div>
-                    
-                    <div className="bg-gray-300 rounded-full h-2.5">
-                      <div 
-                        className={`h-2.5 rounded-full ${
-                          categoryCredits >= maxCredits ? 'bg-green-600' : 'bg-blue-600'
-                        }`} 
-                        style={{ width: `${Math.min((categoryCredits / maxCredits) * 100, 100)}%` }}
-                      ></div>
-                    </div>
+          {categories
+            .filter((category) => {
+              // If no roleSpecificCriteria, show to all
+              if (!category.roleSpecificCriteria || Object.keys(category.roleSpecificCriteria).length === 0) {
+                return true;
+              }
+              // Show if user's role or designation matches a key in roleSpecificCriteria
+              const userRole = userData?.role || "";
+              const userDesignation = userData?.designation || "";
+              return (
+                category.roleSpecificCriteria[userRole] !== undefined ||
+                category.roleSpecificCriteria[userDesignation] !== undefined
+              );
+            })
+            .map((category) => {
+              const categoryCredits = creditsByCategory[category.id] || 0;
+              const maxCredits = maxCreditsByCategory[category.id] || category.maxCredits;
+              // Icon name based on category name
+              let iconName = "publication";
+              if (category.name.toLowerCase().includes("academic") || category.name.toLowerCase().includes("achievement")) {
+                iconName = "academic-achievements";
+              } else if (category.name.toLowerCase().includes("event") || category.name.toLowerCase().includes("workshop")) {
+                iconName = "event-partication";
+              } else if (category.name.toLowerCase().includes("industry")) {
+                iconName = "industry-contribution";
+              } else if (category.name.toLowerCase().includes("student") || category.name.toLowerCase().includes("feedback")) {
+                iconName = "student-feedbacks";
+              }
+              return (
+                <div key={category.id} className="bg-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex justify-center mb-4">
+                    <h3 className="text-xl font-bold text-center">{category.name}</h3>
                   </div>
-                )}
-                
-                <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={() => navigate(`/category/${category.id}`)}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-                  >
-                    View Details
-                  </button>
+                  
+                  {userData?.role === "faculty" && (
+                    <div className="mt-4">
+                      <div className="flex justify-between mb-1 text-sm">
+                        <span>Progress</span>
+                        <span>{categoryCredits} / {maxCredits} credits</span>
+                      </div>
+                      
+                      <div className="bg-gray-300 rounded-full h-2.5">
+                        <div 
+                          className={`h-2.5 rounded-full ${
+                            categoryCredits >= maxCredits ? 'bg-green-600' : 'bg-blue-600'
+                          }`} 
+                          style={{ width: `${Math.min((categoryCredits / maxCredits) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      onClick={() => navigate(`/category/${category.id}`)}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
         
         {documents.length > 0 && (

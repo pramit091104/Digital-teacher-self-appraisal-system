@@ -10,7 +10,7 @@ import {
   updateProfile
 } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { toast } from "sonner";
 
 export type UserRole = "admin" | "faculty" | "hod" | "principal";
@@ -46,6 +46,54 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+// Standalone function to delete a Firebase user by their UID
+// This can be called from outside the AuthProvider context
+export async function deleteFirebaseUser(firebaseUid: string): Promise<void> {
+  try {
+    // 1. Delete the user document from Firestore
+    const userDocRef = doc(db, "users", firebaseUid);
+    await deleteDoc(userDocRef);
+    console.log(`Deleted Firestore document for user ${firebaseUid}`);
+    
+    // 2. For Firebase Auth deletion, we have limited options from client-side code:
+    // Option A: If the user is the currently authenticated user, we can delete them
+    // Option B: Otherwise, we need to disable their account in Firestore
+    
+    // Get the current user
+    const { currentUser } = auth;
+    
+    if (currentUser && currentUser.uid === firebaseUid) {
+      // If it's the current user, we can delete them directly
+      try {
+        await firebaseDeleteUser(currentUser);
+        console.log(`Successfully deleted current user from Firebase Auth`);
+      } catch (authError) {
+        console.error("Error deleting current user from Firebase Auth:", authError);
+      }
+    } else {
+      // For other users, we can't delete them directly from client-side code
+      // Instead, mark them as disabled in Firestore
+      try {
+        await setDoc(doc(db, "users", firebaseUid), {
+          status: "disabled",
+          disabledAt: serverTimestamp(),
+          // This flag indicates this user should be deleted from Auth
+          // A Firebase Cloud Function could periodically check for this flag
+          // and delete these users using the Admin SDK
+          pendingAuthDeletion: true
+        }, { merge: true });
+        
+        console.log(`Marked user ${firebaseUid} for deletion from Firebase Auth`);
+      } catch (disableError) {
+        console.error("Error marking user for deletion:", disableError);
+      }
+    }
+  } catch (error) {
+    console.error("Error deleting Firebase user:", error);
+    throw error;
+  }
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -169,6 +217,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUser && currentUser.uid === userId) {
         // If user is deleting their own account
         await firebaseDeleteUser(currentUser);
+      }
+      // Delete the user document from Firestore
+      try {
+        const userDocRef = doc(db, "users", userId);
+        await deleteDoc(userDocRef);
+      } catch (firestoreError) {
+        console.error("Error deleting user document from Firestore:", firestoreError);
       }
       // Our server side or Cloud Functions would handle the actual deletion
       // of the Auth record for other users

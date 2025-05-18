@@ -6,58 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Search, Edit, Trash, Ban, Check } from "lucide-react";
 
 interface UserListProps {
+  users: User[];
   onEdit: (user: User) => void;
   onDelete: (id: string) => void;
   onSuspend: (id: string) => void;
 }
 
-export const UserList = ({ onEdit, onDelete, onSuspend }: UserListProps) => {
+export const UserList = ({ users, onEdit, onDelete, onSuspend }: UserListProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      name: "John Smith",
-      email: "john.smith@example.com",
-      role: "faculty",
-      department: "Computer Science",
-      designation: "Assistant Professor",
-      status: "active"
-    },
-    {
-      id: "2",
-      name: "Sarah Johnson",
-      email: "sarah.johnson@example.com",
-      role: "faculty",
-      department: "Electronics",
-      designation: "Associate Professor",
-      status: "active"
-    },
-    {
-      id: "3",
-      name: "Mohammed Ahmed",
-      email: "m.ahmed@example.com",
-      role: "hod",
-      department: "Mechanical Engineering",
-      designation: "Professor",
-      status: "active"
-    },
-    {
-      id: "4",
-      name: "Lisa Wang",
-      email: "lisa.wang@example.com",
-      role: "faculty",
-      department: "Mathematics",
-      designation: "Assistant Professor",
-      status: "suspended"
-    },
-    {
-      id: "5",
-      name: "Robert Chen",
-      email: "r.chen@example.com",
-      role: "admin",
-      status: "active"
-    }
-  ]);
   
   const filteredUsers = users.filter(user => 
     user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 

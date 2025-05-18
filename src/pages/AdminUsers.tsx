@@ -104,6 +104,7 @@ const AdminUsers = () => {
         ) : (
           <div className="bg-white rounded-lg shadow p-6">
             <UserList 
+              users={users}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onSuspend={handleSuspend}

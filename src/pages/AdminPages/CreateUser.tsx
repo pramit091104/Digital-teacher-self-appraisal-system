@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Header } from "../../components/Header";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePickerField } from "@/components/DatePickerField";
+import { format } from "date-fns";
+import { ArrowLeft } from "lucide-react";
 
 const CreateUser = () => {
   const navigate = useNavigate();
@@ -22,9 +25,11 @@ const CreateUser = () => {
     designation: "",
     specialization: "",
     password: "",
-    confirmPassword: "",
-    yearJoined: ""
+    confirmPassword: ""
   });
+  
+  // Separate state for the date picker
+  const [joinDate, setJoinDate] = useState<Date | undefined>(undefined);
   
   const [loading, setLoading] = useState(false);
   
@@ -57,6 +62,9 @@ const CreateUser = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
       
+      // Format the join date if available
+      const yearJoined = joinDate ? format(joinDate, "yyyy-MM-dd") : null;
+      
       // Create a document in the users collection
       await setDoc(doc(db, "users", user.uid), {
         displayName: formData.name,
@@ -65,15 +73,27 @@ const CreateUser = () => {
         department: formData.department || null,
         designation: formData.designation || null,
         specialization: formData.specialization || null,
-        yearJoined: formData.yearJoined || null,
+        yearJoined: yearJoined,
         status: "active",
         createdAt: serverTimestamp()
       });
       
       toast.success(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} account created successfully`);
       
-      // Redirect to admin dashboard explicitly
-      navigate("/dashboard");
+      // Reset the form instead of redirecting
+      setFormData({
+        name: "",
+        email: "",
+        role: "faculty",
+        department: "",
+        designation: "",
+        specialization: "",
+        password: "",
+        confirmPassword: ""
+      });
+      setJoinDate(undefined);
+      
+      // No redirection - stay on the same page
     } catch (error: any) {
       console.error("Error creating user:", error);
       if (error.code === "auth/email-already-in-use") {
@@ -94,10 +114,10 @@ const CreateUser = () => {
         <div className="mb-4">
           <Button
             variant="ghost"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/admin/users")}
             className="flex items-center gap-2 text-primary hover:text-primary/80"
           >
-            <span>←</span> Back to Dashboard
+            <ArrowLeft className="h-4 w-4" /> Back to Users
           </Button>
         </div>
         
@@ -194,16 +214,12 @@ const CreateUser = () => {
                     />
                   </div>
                   
-                  <div className="grid gap-2">
-                    <Label htmlFor="yearJoined">Year Joined</Label>
-                    <Input
-                      id="yearJoined"
-                      name="yearJoined"
-                      value={formData.yearJoined}
-                      onChange={handleChange}
-                      placeholder="YYYY"
-                    />
-                  </div>
+                  <DatePickerField
+                    label="Date Joined"
+                    date={joinDate}
+                    setDate={setJoinDate}
+                    placeholder="Select join date"
+                  />
                   
                   <div className="grid gap-2">
                     <Label htmlFor="password">Password</Label>
@@ -237,7 +253,7 @@ const CreateUser = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => navigate("/dashboard")}
+                      onClick={() => navigate("/admin/users")}
                     >
                       Cancel
                     </Button>

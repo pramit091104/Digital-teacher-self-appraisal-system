@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "../contexts/AuthContext";
 import { fetchUserById, updateUser } from "../services/userService";
 import { toast } from "sonner";
+import { DatePickerField } from "../components/DatePickerField";
 
 const CreateEditUser = () => {
   const { id } = useParams<{ id: string }>();
@@ -124,13 +125,12 @@ const CreateEditUser = () => {
         });
         
         toast.success("User updated successfully");
+        navigate("/admin/users");
       } else {
         // Create new user
         await signup(formData.email, formData.password, formData.name, formData.role as any);
         toast.success("User created successfully");
       }
-      
-      navigate("/admin/users");
     } catch (error: any) {
       console.error("Error saving user:", error);
       toast.error(error.message || "Failed to save user");
@@ -259,13 +259,16 @@ const CreateEditUser = () => {
                   </div>
                   
                   <div className="grid gap-2">
-                    <Label htmlFor="yearJoined">Year Joined</Label>
-                    <Input
-                      id="yearJoined"
-                      name="yearJoined"
-                      value={formData.yearJoined}
-                      onChange={handleChange}
-                      placeholder="YYYY"
+                    <DatePickerField
+                      label="Year Joined"
+                      date={formData.yearJoined ? new Date(formData.yearJoined) : undefined}
+                      setDate={(date) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          yearJoined: date ? date.getFullYear().toString() : ''
+                        }));
+                      }}
+                      placeholder="Select year"
                     />
                   </div>
                   

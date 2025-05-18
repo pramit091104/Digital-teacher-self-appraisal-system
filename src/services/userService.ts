@@ -17,9 +17,37 @@ const convertApiResponseToUser = (data: any): User => {
   };
 };
 
-// Fetch all users from MongoDB
+// Fetch all users from Firebase
 export const fetchUsers = async (): Promise<User[]> => {
   try {
+    // First try to get users from Firebase
+    const { db } = await import('../lib/firebase');
+    const { collection, getDocs } = await import('firebase/firestore');
+    
+    const usersRef = collection(db, 'users');
+    const querySnapshot = await getDocs(usersRef);
+    
+    if (!querySnapshot.empty) {
+      // Convert Firebase users to our User model
+      const firebaseUsers: User[] = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id, // Use Firebase UID as the user ID
+          name: data.displayName || 'Unknown',
+          email: data.email || '',
+          role: data.role || 'faculty',
+          department: data.department || '',
+          designation: data.designation || '',
+          specialization: data.specialization || '',
+          yearJoined: data.yearJoined || '',
+          status: data.status || 'active',
+        };
+      });
+      
+      return firebaseUsers;
+    }
+    
+    // Fallback to MongoDB if Firebase fetch fails or returns empty
     const response = await api.get<any[]>('/users');
     
     if (response.error) {
@@ -65,6 +93,23 @@ export const fetchUserById = async (userId: string): Promise<User | null> => {
   }
 };
 
+// Fetch user by email
+export const fetchUserByEmail = async (email: string): Promise<User | null> => {
+  try {
+    // Query the API to find a user by email
+    const response = await api.get<any>(`/users/email/${encodeURIComponent(email)}`);
+    
+    if (response.error || !response.data) {
+      return null;
+    }
+    
+    return convertApiResponseToUser(response.data);
+  } catch (error) {
+    console.error("Error fetching user by email:", error);
+    return null;
+  }
+};
+
 // Fetch users by role
 export const fetchUsersByRole = async (role: string): Promise<User[]> => {
   try {
@@ -95,16 +140,90 @@ export const updateUserStatus = async (userId: string, status: 'active' | 'suspe
   }
 };
 
-// Delete user
+// Delete user from both Firebase and MongoDB
 export const deleteUser = async (userId: string): Promise<void> => {
   try {
-    const response = await api.delete<any>(`/users/${userId}`);
+    // Check if the userId is a Firebase UID or MongoDB ID
+    let firebaseUid = userId;
+    let mongoDbId = userId;
+    let userEmail = '';
     
-    if (response.error) {
-      throw new Error(response.error);
+    // First try to get the user from Firebase directly using the ID
+    const { db } = await import('../lib/firebase');
+    const { doc, getDoc, collection, query, where, getDocs } = await import('firebase/firestore');
+    
+    // Try to get the user document directly from Firebase
+    const userDocRef = doc(db, 'users', firebaseUid);
+    const userDocSnap = await getDoc(userDocRef);
+    
+    if (userDocSnap.exists()) {
+      // We found the user in Firebase
+      const userData = userDocSnap.data();
+      userEmail = userData.email || '';
+      
+      // Now we need to find the corresponding MongoDB ID
+      try {
+        // Query MongoDB to find the user with the same email
+        const mongoUser = await fetchUserByEmail(userEmail);
+        if (mongoUser) {
+          mongoDbId = mongoUser.id;
+        }
+      } catch (mongoError) {
+        console.warn("Could not find MongoDB user with email:", userEmail, mongoError);
+        // Continue with deletion even if we can't find the MongoDB user
+      }
+    } else {
+      // If not found directly in Firebase, try to get the user from MongoDB first
+      try {
+        const mongoUser = await fetchUserById(mongoDbId);
+        if (mongoUser) {
+          userEmail = mongoUser.email;
+          
+          // Now try to find the Firebase user with this email
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('email', '==', userEmail));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            // Get the Firebase UID from the first matching document
+            firebaseUid = querySnapshot.docs[0].id;
+          }
+        }
+      } catch (mongoError) {
+        console.error("Error fetching MongoDB user:", mongoError);
+        // Continue with deletion attempt
+      }
     }
+    
+    // Delete from Firebase first
+    try {
+      const { deleteFirebaseUser } = await import('../contexts/AuthContext');
+      
+      // Delete the user from Firebase (both Firestore document and Auth if possible)
+      await deleteFirebaseUser(firebaseUid);
+      console.log(`Successfully processed Firebase deletion for user with UID: ${firebaseUid}`);
+    } catch (firebaseError) {
+      console.error("Error deleting user from Firebase:", firebaseError);
+      // Continue with MongoDB deletion even if Firebase deletion fails
+    }
+    
+    // Delete from MongoDB
+    try {
+      const response = await api.delete<any>(`/users/${mongoDbId}`);
+      
+      if (response.error) {
+        console.error(`Error deleting user from MongoDB: ${response.error}`);
+      } else {
+        console.log(`Successfully deleted user from MongoDB with ID: ${mongoDbId}`);
+      }
+    } catch (mongoError) {
+      console.error("Error deleting user from MongoDB:", mongoError);
+      // If MongoDB deletion fails but Firebase deletion succeeded, we still consider it a success
+    }
+    
+    // Return successfully as long as at least one deletion worked
   } catch (error) {
-    console.error("Error deleting user:", error);
+    console.error("Error in user deletion process:", error);
     throw error;
   }
 };

@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "../../components/Header";
-import { Category } from "../../lib/api";
+import { Category } from "../../services/categoryService";
 import { toast } from "sonner";
-import { 
-  getDummyCategories, 
-  addDummyCategory, 
-  updateDummyCategory 
-} from "../../services/criteriaService";
+import { fetchCategories, createCategory, updateCategory, deleteCategory as deleteCategoryAPI } from "../../services/categoryService";
 import { Button } from "@/components/ui/button";
 
 interface RoleCriteria {
@@ -43,22 +39,22 @@ const ManageCriteria = () => {
   const roleOptions = ["Assistant Professor", "Associate Professor", "Professor", "HOD", "Principal"];
   
   useEffect(() => {
-    fetchCategories();
+    fetchCategoriesFromAPI();
   }, []);
-  
-  const fetchCategories = () => {
+
+  const fetchCategoriesFromAPI = async () => {
     setLoading(true);
     try {
-      // Use dummy data service instead of API
-      const dummyCategories = getDummyCategories();
-      setCategories(dummyCategories);
-      setLoading(false);
+      const apiCategories = await fetchCategories();
+      setCategories(apiCategories);
     } catch (error) {
       console.error("Error fetching categories:", error);
       toast.error("Failed to load categories");
+    } finally {
       setLoading(false);
     }
   };
+
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -132,51 +128,56 @@ const ManageCriteria = () => {
     if (!window.confirm("Are you sure you want to delete this category?")) {
       return;
     }
-    
-    // Remove from local state instead of API call
-    setCategories(prev => prev.filter(c => c.id !== id));
-    toast.success("Category deleted successfully");
+    try {
+      await deleteCategoryAPI(id);
+      toast.success("Category deleted successfully");
+      await fetchCategoriesFromAPI();
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      toast.error("Failed to delete category");
+    }
   };
+
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.name) {
       toast.error("Name is required");
       return;
     }
-    
     try {
-      const categoryData = {
+      const categoryData: Partial<Category> = {
         name: formData.name,
         description: formData.description,
         maxCredits: formData.maxCredits,
         perDocumentCredits: formData.perDocumentCredits,
         fields: formData.fields,
       };
-      
+      // Only add roleSpecificCriteria if editing and it already exists
+      if (editingCategory && editingCategory.roleSpecificCriteria) {
+        categoryData.roleSpecificCriteria = editingCategory.roleSpecificCriteria;
+      }
       if (editingCategory) {
-        // Update existing category
-        const updatedCategory = updateDummyCategory(editingCategory.id, categoryData);
+        // Update existing category via API
+        const updatedCategory = await updateCategory(editingCategory.id, categoryData);
         if (updatedCategory) {
-          setCategories(prev => 
-            prev.map(c => c.id === editingCategory.id ? updatedCategory : c)
-          );
           toast.success("Category updated successfully");
         }
       } else {
-        // Add new category
-        const newCategory = addDummyCategory(categoryData as Omit<Category, "id">);
-        setCategories(prev => [...prev, newCategory]);
-        toast.success("Category created successfully");
+        // Add new category via API
+        const newCategory = await createCategory(categoryData);
+        if (newCategory) {
+          toast.success("Category created successfully");
+        }
       }
-      
+      await fetchCategoriesFromAPI();
       resetForm();
     } catch (error) {
       console.error("Error saving category:", error);
       toast.error("Failed to save category");
     }
   };
+
   
   const openRoleCriteriaForm = (category: Category) => {
     setCurrentCategory(category);
@@ -185,70 +186,49 @@ const ManageCriteria = () => {
   
   const handleRoleCriteriaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!currentCategory || !roleCriteriaFormData.role) {
       toast.error("Category and role are required");
       return;
     }
-    
     try {
       const { role, maxCredits } = roleCriteriaFormData;
-      
-      // Update the category locally
-      const updatedRoleSpecificCriteria = {
+      const updatedRoleSpecificCriteria: Record<string, { maxCredits: number; perDocumentCredits: number }> = {
         ...(currentCategory.roleSpecificCriteria || {}),
-        [role]: { 
-          maxCredits, 
-          perDocumentCredits: currentCategory.perDocumentCredits 
+        [role]: {
+          maxCredits,
+          perDocumentCredits: currentCategory.perDocumentCredits
         }
       };
-      
-      const updatedCategory = {
-        ...currentCategory,
-        roleSpecificCriteria: updatedRoleSpecificCriteria
-      };
-      
-      // Update in our categories state
-      setCategories(prevCategories => 
-        prevCategories.map(cat => {
-          if (cat.id === currentCategory.id) {
-            return updatedCategory;
-          }
-          return cat;
-        })
-      );
-      
+      await updateCategory(currentCategory.id, { roleSpecificCriteria: updatedRoleSpecificCriteria });
       toast.success(`Role criteria for ${role} added successfully`);
+      await fetchCategoriesFromAPI();
       resetRoleCriteriaForm();
     } catch (error) {
       console.error("Error adding role criteria:", error);
       toast.error("Failed to add role criteria");
     }
   };
+
   
-  const handleDeleteRoleCriteria = (categoryId: string, role: string) => {
+  const handleDeleteRoleCriteria = async (categoryId: string, role: string) => {
     if (!window.confirm(`Are you sure you want to delete criteria for ${role}?`)) {
       return;
     }
-    
-    // Update local state
-    setCategories(prevCategories => 
-      prevCategories.map(cat => {
-        if (cat.id === categoryId && cat.roleSpecificCriteria) {
-          const updatedRoleSpecificCriteria = { ...cat.roleSpecificCriteria };
-          delete updatedRoleSpecificCriteria[role];
-          
-          return {
-            ...cat,
-            roleSpecificCriteria: updatedRoleSpecificCriteria
-          };
-        }
-        return cat;
-      })
-    );
-    
-    toast.success(`Role criteria for ${role} deleted successfully`);
+    try {
+      // Find the category
+      const category = categories.find(c => c.id === categoryId);
+      if (!category || !category.roleSpecificCriteria) return;
+      const updatedRoleSpecificCriteria: Record<string, { maxCredits: number; perDocumentCredits: number }> = { ...category.roleSpecificCriteria };
+      delete updatedRoleSpecificCriteria[role];
+      await updateCategory(categoryId, { roleSpecificCriteria: updatedRoleSpecificCriteria });
+      toast.success(`Role criteria for ${role} deleted successfully`);
+      await fetchCategoriesFromAPI();
+    } catch (error) {
+      console.error("Error deleting role criteria:", error);
+      toast.error("Failed to delete role criteria");
+    }
   };
+
   
   return (
     <div>

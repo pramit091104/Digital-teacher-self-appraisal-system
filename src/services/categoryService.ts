@@ -1,18 +1,15 @@
 import { api } from './apiService';
 
 export interface Category {
-  _id?: string;
+  id: string;
   name: string;
   description: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    required: boolean;
-    options?: string[];
-  }>;
   maxCredits: number;
-  createdAt: string;
-  updatedAt: string;
+  perDocumentCredits: number;
+  fields: string[];
+  roleSpecificCriteria?: Record<string, { maxCredits: number; perDocumentCredits: number }>;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // Fetch all categories
